@@ -1,0 +1,126 @@
+<!doctype html>
+<html>
+<head>
+<meta charset=utf-8>
+<style>
+  html {
+    font-size: 24px;
+  }
+  body {
+    background-color: #eee;
+    font-family: sans-serif;
+  }
+  #picker {
+    font-size: 2rem;
+    margin: 2rem auto;
+    border: 1px solid red;
+  }
+  #picker button {
+    font-size: inherit;
+    background: none;
+    border: none;
+    vertical-align: middle;
+  }
+  input {
+    font-size: inherit;
+    background-color: #eee;
+    border: none;
+    -webkit-appearance: none;
+        -moz-appearance:textfield;
+    box-sizing: border-box;
+    width: 2em;
+    text-align: center;
+  }
+  #app {
+    display: block;
+    margin: 0 auto;
+    width: 35rem;
+  }
+</style>
+</head>
+<body>
+<div id=app>
+  <div class=beat></div>
+  <div class=time></div>
+  <button class=start>Start!</button>
+  <button class=stop>Stop</button>
+</div>
+<script>
+
+$ = document.querySelector.bind(document);
+
+// Pad to 2 numbers and convert to str
+function p(number, pad) {
+  return number.toString().padStart(pad, "0");
+}
+
+function ms2string(ms) {
+  let acc = ms;
+  let justms = Math.floor(acc % 1000);
+  acc /= 1000;
+  let s = Math.floor(acc % 60);
+  acc /= 60;
+  let min = Math.floor(acc % 60);
+  acc /= 60;
+  let h = Math.floor(acc % 60);
+  return `${p(h, 2)}:${p(min, 2)}:${p(s, 2)}:${p(justms, 3)}`;
+}
+
+function timeAndBPM2beatstring(ms, bpm) {
+  let acc = ms / Math.pow(10, 3);
+  var duration_beat_s = 60 / bpm;
+  var beat = ms / 1000 * duration_beat_s;
+  var quarter = Math.floor((beat % 1) * 4) + 1;
+  var integerBeat = Math.floor(beat);
+  return `${integerBeat}:${quarter}`;
+}
+
+function Timer(bpm) {
+  this.startTime = null;
+  this.lastTime = null;
+  this.time = 0;
+  this.running = false;
+  this.bpm = bpm;
+  $(".beat").innerText = timeAndBPM2beatstring(this.time, this.bpm);
+  $(".time").innerText = ms2string(this.time);
+  $(".start").onclick = this.start.bind(this);
+  $(".stop").onclick = this.stop.bind(this);
+}
+
+Timer.prototype.start = function() {
+  if (this.startTime == null) {
+    this.startTime = this.lastTime = Date.now();
+  }
+
+  this.lastTime = Date.now();
+  this.running = true;
+  requestAnimationFrame(this.tick.bind(this));
+}
+
+Timer.prototype.stop = function() {
+  this.running = false;
+}
+
+Timer.prototype.tick = function() {
+  if (!this.running) {
+    return;
+  }
+  let now = Date.now();
+  let interval = now - this.lastTime;
+  this.lastTime = now;
+  this.time += interval;
+  this.render();
+  if (this.running) {
+    requestAnimationFrame(this.tick.bind(this));
+  }
+}
+
+Timer.prototype.render = function() {
+  $(".beat").innerHTML = timeAndBPM2beatstring(this.time, this.bpm);
+  $(".time").innerHTML = ms2string(this.time);
+}
+
+var t = new Timer(122);
+
+</script>
+</html>
