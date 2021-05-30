@@ -1,0 +1,230 @@
+<!doctype html>
+<html>
+<head>
+<meta charset=utf-8>
+<style>
+@font-face {
+	font-family: 'dseg7';
+	src: url('DSEG7Modern-Bold.ttf') format('ttf'),
+	     url('DSEG7Modern-Bold.woff') format('woff'),
+	     url('DSEG7Modern-Bold.woff2') format('woff2');
+}
+  html {
+  font-family: "dseg7";
+    font-size: 24px;
+    color: red;
+    text-shadow: 0vh 0vh 15vh red;
+  }
+  body {
+    background-color: black;
+  }
+  #picker {
+    font-size: 2rem;
+    margin: 2rem auto;
+    border: 1px solid red;
+  }
+  #picker button {
+    font-size: inherit;
+    background: none;
+    border: none;
+    vertical-align: middle;
+  }
+  input {
+    font-size: inherit;
+    background-color: #eee;
+    border: none;
+    -webkit-appearance: none;
+        -moz-appearance:textfield;
+    box-sizing: border-box;
+    width: 2em;
+    text-align: center;
+  }
+  #app {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index:10;
+    margin-top: 30%;
+    display: block;
+  }
+  .beat {
+	  text-align: right;
+	  font-size: 33vw;
+	  max-width: 95vw;
+	  width: 100%;
+  }
+  .time {
+	  text-align: right;
+	  font-size: 12vw;
+	  width: 100%;
+	  max-width: 95vw;
+  }
+  .gridwrap {
+    z-index: 0;
+	  display: grid;
+	  position: absolute;
+	  top: 0;
+	  left: 0;
+	  width: 100%;
+	  height: 100%;
+	  grid-template-columns: repeat(2, 1fr);
+	  opacity: 0.3;
+  }
+  .phrase {
+    padding-bottom: 1vh;
+    padding-right: 1vh;
+  }
+  .phraseinner {
+    height: 100%;
+    background: red;
+    width: 0%;
+  }
+</style>
+</head>
+<body>
+<div class=gridwrap>
+</div>
+<div id=app>
+  <div class=beat></div>
+  <div class=time></div>
+</div>
+<script>
+
+$ = document.querySelector.bind(document);
+
+// Pad to 2 numbers and convert to str
+function p(number, pad) {
+  return number.toString().padStart(pad, "0");
+}
+
+function ms2string(ms) {
+  let acc = ms;
+  let justms = Math.floor(acc % 1000);
+  acc /= 1000;
+  let s = Math.floor(acc % 60);
+  acc /= 60;
+  let min = Math.floor(acc % 60);
+  acc /= 60;
+  let h = Math.floor(acc % 60);
+  return `${p(h, 2)}:${p(min, 2)}:${p(s, 2)}:${p(justms, 3)}`;
+}
+
+function beat(ms, bpm) {
+  let acc = ms / Math.pow(10, 3);
+  var duration_beat_s = 60 / bpm;
+  return ms / (1000 * duration_beat_s) / 4;
+}
+
+function timeAndBPM2beatstring(ms, bpm, modulo) {
+  var b = this.beat(ms, bpm);
+  var quarter = Math.floor((b % 1) * 4) + 1;
+  var integerBeat = Math.floor(b);
+  var c = ":";
+  if (quarter % 3 == 0) {
+    c = " ";
+  }
+  return `${integerBeat % modulo}${c}${quarter}`;
+}
+
+function Timer(bpm, phrases, len) {
+  console.log(bpm, phrases, len);
+  this.startTime = null;
+  this.lastTime = null;
+  this.time = 0;
+  this.running = false;
+  this.bpm = bpm;
+  this.modulo = len;
+  this.phrase = -1;
+  this.max_phrase = phrases;
+  this.grid = document.querySelector(".gridwrap");
+  $(".beat").innerText = timeAndBPM2beatstring(this.time, this.bpm, this.modulo);
+  $(".time").innerText = ms2string(this.time);
+}
+
+Timer.prototype.start = function() {
+  if (this.startTime == null) {
+    this.startTime = this.lastTime = Date.now();
+  }
+
+  this.lastTime = Date.now();
+  this.running = true;
+  requestAnimationFrame(this.tick.bind(this));
+}
+
+Timer.prototype.stop = function() {
+  this.running = false;
+}
+
+Timer.prototype.beat = function() {
+  return beat(this.time, this.bpm);
+}
+
+
+Timer.prototype.tick = function() {
+  if (!this.running) {
+    return;
+  }
+  let now = Date.now();
+  let interval = (now - this.lastTime);
+  this.lastTime = now;
+  this.time += interval;
+  this.render();
+  if (this.running) {
+    requestAnimationFrame(this.tick.bind(this));
+  }
+  if (this.phrase != Math.floor(this.beat() / this.modulo) % this.max_phrase) {
+    this.phrase++;
+    if (this.phrase > this.max_phrase) {
+      this.grid.innerHTML = "";
+      this.phrase = -1;
+      return;
+    }
+    var d = document.createElement("div");
+    d.className = "phrase";
+    var dinner = document.createElement("div");
+    dinner.className = "phraseinner";
+    d.appendChild(dinner);
+    this.grid.appendChild(d);
+  }
+  var b = this.beat() % this.modulo / this.modulo;
+  this.grid.lastElementChild.firstElementChild.style.width = (b * 100) + "%";
+  
+}
+
+Timer.prototype.render = function() {
+  $(".beat").innerHTML = timeAndBPM2beatstring(this.time, this.bpm, this.modulo);
+  $(".time").innerHTML = ms2string(this.time);
+}
+
+var params = document.location.hash.split("&");
+var bpm = 122;
+var phrases = 8;
+var len = 64;
+
+for (var pp of params) {
+  if (pp.indexOf("bpm") != -1) {
+    bpm = parseInt(pp.split("=")[1]);
+  }
+  if (pp.indexOf("phrases") != -1) {
+    phrases = parseInt(pp.split("=")[1]);
+  }
+  if (pp.indexOf("len") != -1) {
+    len = parseInt(pp.split("=")[1]);
+  }
+}
+
+
+var t = new Timer(bpm, phrases, len);
+
+window.onload = function() {
+document.body.onclick = function() {
+  if (t.running) {
+    t.stop();
+  } else {
+    t.start();
+  }
+}
+}
+
+</script>
+</html>
